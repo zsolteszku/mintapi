@@ -173,17 +173,7 @@ CHROME_ZIP_TYPES = {
     'win64': 'win32'
 }
 
-
-def get_web_driver(email, password, headless=False, mfa_method=None,
-                   mfa_input_callback=None, wait_for_sync=True,
-                   wait_for_sync_timeout=5 * 60,
-                   session_path=None, imap_account=None, imap_password=None,
-                   imap_server=None, imap_folder="INBOX"):
-    if headless and mfa_method is None:
-        warnings.warn("Using headless mode without specifying an MFA method"
-                      "is unlikely to lead to a successful login. Defaulting --mfa-method=sms")
-        mfa_method = "sms"
-
+def create_driver(session_path=None, headless=False):
     zip_type = ""
     executable_path = os.getcwd() + os.path.sep + 'chromedriver'
     if _platform in ['win32', 'win64']:
@@ -213,7 +203,20 @@ def get_web_driver(email, password, headless=False, mfa_method=None,
     if session_path is not None:
         chrome_options.add_argument("user-data-dir=%s" % session_path)
 
-    driver = Chrome(chrome_options=chrome_options, executable_path="%s" % executable_path)
+    return Chrome(chrome_options=chrome_options, executable_path="%s" % executable_path)
+
+
+def get_web_driver(email, password, headless=False, mfa_method=None,
+                   mfa_input_callback=None, wait_for_sync=True,
+                   wait_for_sync_timeout=5 * 60,
+                   session_path=None, imap_account=None, imap_password=None,
+                   imap_server=None, imap_folder="INBOX", driver=None):
+    if headless and mfa_method is None:
+        warnings.warn("Using headless mode without specifying an MFA method"
+                      "is unlikely to lead to a successful login. Defaulting --mfa-method=sms")
+        mfa_method = "sms"
+
+    driver = driver or create_driver(session_path=session_path, headless=headless)
     driver.get("https://www.mint.com")
     driver.implicitly_wait(20)  # seconds
     try:
@@ -358,7 +361,8 @@ class Mint(object):
     def __init__(self, email=None, password=None, mfa_method=None,
                  mfa_input_callback=None, headless=False, session_path=None,
                  imap_account=None, imap_password=None, imap_server=None,
-                 imap_folder="INBOX", wait_for_sync=True, wait_for_sync_timeout=5 * 60):
+                 imap_folder="INBOX", wait_for_sync=True, wait_for_sync_timeout=5 * 60,
+                 driver=None):
         if email and password:
             self.login_and_get_token(email, password,
                                      mfa_method=mfa_method,
@@ -370,7 +374,8 @@ class Mint(object):
                                      imap_server=imap_server,
                                      imap_folder=imap_folder,
                                      wait_for_sync=wait_for_sync,
-                                     wait_for_sync_timeout=wait_for_sync_timeout)
+                                     wait_for_sync_timeout=wait_for_sync_timeout,
+                                     driver=driver)
 
     @classmethod
     def create(cls, email, password, **opts):
@@ -444,7 +449,8 @@ class Mint(object):
                             imap_server=None,
                             imap_folder=None,
                             wait_for_sync=True,
-                            wait_for_sync_timeout=5 * 60):
+                            wait_for_sync_timeout=5 * 60,
+                            driver=None):
         if self.token and self.driver:
             return
 
@@ -458,7 +464,8 @@ class Mint(object):
                                                           imap_server=imap_server,
                                                           imap_folder=imap_folder,
                                                           wait_for_sync=wait_for_sync,
-                                                          wait_for_sync_timeout=wait_for_sync_timeout)
+                                                          wait_for_sync_timeout=wait_for_sync_timeout,
+                                                          driver=driver)
         self.token = self.get_token()
 
     def get_token(self):
